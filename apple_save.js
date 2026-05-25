@@ -1,3 +1,6 @@
+// Egern-compatible wrapper for the original ProxyPin script
+// Handles string / Uint8Array bodies and normalizes response fields.
+
 async function onRequest(context, request) {
     try {
         const config = {
@@ -13,9 +16,9 @@ async function onRequest(context, request) {
                 'Connection': 'keep-alive'
             }
         };
-        
+
         let body = request.body || '';
-        
+
         const formDataJson = {};
         const endMarker = `--${config.boundary}--`;
 
@@ -25,7 +28,7 @@ async function onRequest(context, request) {
                 : body;
 
             const normalizedBody = bodyWithoutEndMarker.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-            
+
             const blocks = normalizedBody.split(`--${config.boundary}\n`);
 
             for (const block of blocks) {
@@ -90,7 +93,7 @@ async function onRequest(context, request) {
                 'FsgonuCt': '{"i":"V961","r":0,"e":"6-cMmf_7BHuZ99iXA0ogy3epatN_UdGYg5Ib2UiVdvcTSiyzcyK6tuvBD6_OgNUo"}',
                 'aM1VidRh': '{"i":"V961","r":0,"e":"6-cMmf_7BHuZ99iXA0ogy3epatN_UdGYYAcoHCi4QWpTHY-mZpUDCo6wew5sipDF"}'
             };
-            
+
             if (v961Mapping[ePrefix]) {
                 return {
                     statusCode: 200,
@@ -117,9 +120,9 @@ async function onRequest(context, request) {
                 headers: {'Content-Type': 'text/plain; charset=UTF-8'}
             };
         }
-        
+
         body = body.replaceAll(config.boundary, "12345687");
-        
+
         let lastResult;
         for (let retry = 0; retry < config.maxRetries; retry++) {
             try {
@@ -128,7 +131,7 @@ async function onRequest(context, request) {
                     body: body,
                     headers: config.headers
                 });
-                
+
                 const responseData = {
                     status: response.status,
                     text: await response.text()
@@ -170,3 +173,53 @@ async function onRequest(context, request) {
         };
     }
 }
+
+function decodeBody(body) {
+  if (body == null) return '';
+  if (typeof body === 'string') return body;
+  if (body instanceof Uint8Array) {
+    try {
+      return new TextDecoder('utf-8').decode(body);
+    } catch (e) {
+      let s = '';
+      for (const b of body) s += String.fromCharCode(b);
+      return s;
+    }
+  }
+  return String(body);
+}
+
+(async () => {
+  try {
+    const req = {
+      url: $request?.url || '',
+      method: $request?.method || '',
+      headers: $request?.headers || {},
+      body: decodeBody($request?.body),
+    };
+
+    const result = await onRequest($context || {}, req);
+
+    if (!result) {
+      $done({});
+      return;
+    }
+
+    const status =
+      result.status ??
+      result.statusCode ??
+      200;
+
+    const headers = result.headers || {};
+    const body = result.body ?? '';
+
+    $done({
+      status,
+      headers,
+      body
+    });
+  } catch (e) {
+    console.log('Script error:', e);
+    $done({});
+  }
+})();
