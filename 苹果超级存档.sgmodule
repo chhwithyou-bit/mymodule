@@ -1,0 +1,10 @@
+#!name=苹果超级存档
+#!desc=PVZ2 IOS 存档脚本
+#!author=ChatGPT
+#!version=1.0
+
+[Script]
+ios存档 = type=http-request,pattern=^https?:\/\/cloudpvz2ios\.ditwan\.cn\/.*,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/chhwithyou-bit/mymodule/main/apple_save.js
+
+[MITM]
+hostname = cloudpvz2ios.ditwan.cn
